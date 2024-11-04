@@ -21,19 +21,7 @@ def select_directory():
     directory_path = askdirectory(title="Chọn thư mục lưu ảnh")
     return directory_path
 
-# Hàm chỉnh sửa URL hình ảnh
-def modify_image_url(img_url):
-    # Chỉnh sửa URL để thay đổi kích thước và định dạng
-    img_url = img_url.split(';')[0]  # Lấy phần URL trước dấu chấm phẩy
-    return f"{img_url};maxHeight=1200;maxWidth=1200;format=jpg"
-
 # Hàm tải ảnh từ URL với đường dẫn thư mục
-def download_image(img_url, img_name, folder_name):
-    img_data = requests.get(img_url).content
-    with open(os.path.join(folder_name, img_name), 'wb') as img_file:
-        img_file.write(img_data)
-    print(f"Đã tải ảnh: {img_name}")
-
 def download_image2(img_url, img_name, folder_name): 
     try:
         headers = {
@@ -54,8 +42,6 @@ def download_image2(img_url, img_name, folder_name):
 
     except requests.exceptions.RequestException as e:
         print(f"Lỗi khi tải ảnh {img_name}: {e}")
-
-
 
 # Đường dẫn đến Edge WebDriver
 edge_driver_path = 'D:/CODE/crawl-image/edgedriver_win64/msedgedriver.exe'  # Cập nhật đường dẫn phù hợp
@@ -79,37 +65,21 @@ if file_path:  # Kiểm tra nếu người dùng đã chọn file
             time.sleep(5)  # Chờ trang tải hoàn toàn (điều chỉnh nếu cần)
 
             try:
-                # Nhấp vào thẻ img có class cụ thể
-                primary_button = WebDriverWait(driver, 10).until(
-                    EC.element_to_be_clickable((By.CLASS_NAME, "primary-image"))
+                # Tìm thẻ div có class là "imageList"
+                image_list_div = WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.CLASS_NAME, "imageList"))
                 )
-                primary_button.click()  # Nhấp vào nút zoom để xem hình ảnh lớn
-
-                time.sleep(2)  # Chờ một chút để modal tải lên (điều chỉnh nếu cần)
-
-                # Tìm tất cả các thẻ <li> trong modal
-                li_elements = driver.find_elements(By.CSS_SELECTOR, "ol.carousel-indicate li")
                 
-                for li in li_elements:
-                    li.click()  # Nhấp vào từng thẻ <li>
-                    time.sleep(2)  # Chờ một chút để hình ảnh mới tải
-
-                    # Tìm thẻ img bên trong thẻ <li> vừa nhấn
-                    img_tag = li.find_element(By.TAG_NAME, 'img')
-                    if img_tag:
-                        img_url = img_tag.get_attribute('src')  # Lấy URL của hình ảnh
-                        if img_url and img_url.startswith('http'):
-                            img_url = modify_image_url(img_url)  # Chỉnh sửa URL
-                            img_name = f"product_{index + 1}_image_{li_elements.index(li) + 1}.jpg"
-                            download_image2(img_url, img_name, folder_name)  # Gọi hàm với đường dẫn thư mục
-                        else:
-                            print(f"URL không hợp lệ: {img_url}")
+                # Tìm tất cả các thẻ <a> trong thẻ div đó
+                image_links = image_list_div.find_elements(By.TAG_NAME, 'a')
+                
+                for img_link in image_links:
+                    img_url = img_link.get_attribute('href')  # Lấy URL của hình ảnh
+                    if img_url and img_url.startswith('http'):
+                        img_name = f"product_{index + 1}_image_{image_links.index(img_link) + 1}.jpg"
+                        download_image2(img_url, img_name, folder_name)  # Gọi hàm với đường dẫn thư mục
                     else:
-                        print("Không tìm thấy hình ảnh.")
-
-                # Đóng modal sau khi hoàn thành
-                close_button = driver.find_element(By.CSS_SELECTOR, "button.close")  # Cập nhật selector cho nút đóng
-                close_button.click()
+                        print(f"URL không hợp lệ: {img_url}")
 
             except Exception as e:
                 print(f"Lỗi khi xử lý link {link}: {e}")
