@@ -8,6 +8,8 @@ import time
 import os
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename, askdirectory
+from PIL import Image
+from io import BytesIO
 
 # Sử dụng hộp thoại để chọn file
 def select_file():
@@ -21,7 +23,26 @@ def select_directory():
     directory_path = askdirectory(title="Chọn thư mục lưu ảnh")
     return directory_path
 
-# Hàm tải ảnh từ URL với đường dẫn thư mục
+# Hàm để làm cho ảnh thành hình vuông mà không mất nội dung
+def make_square_image(img_data, output_path):
+    # Open the image
+    img = Image.open(BytesIO(img_data))
+    
+    # Get dimensions
+    width, height = img.size
+    max_dim = max(width, height)
+    
+    # Create a new square image with a white background
+    new_img = Image.new("RGB", (max_dim, max_dim), (255, 255, 255))
+    
+    # Paste the original image onto the center of the new square image
+    new_img.paste(img, ((max_dim - width) // 2, (max_dim - height) // 2))
+    
+    # Save the new square image
+    new_img.save(output_path)
+    print(f"Saved square image: {output_path}")
+
+# Hàm tải ảnh từ URL với đường dẫn thư mục và làm cho nó thành hình vuông
 def download_image2(img_url, img_name, folder_name): 
     try:
         headers = {
@@ -35,10 +56,9 @@ def download_image2(img_url, img_name, folder_name):
             print(f"Lỗi: URL {img_url} không phải là hình ảnh.")
             return
 
-        # Lưu hình ảnh vào thư mục đã chọn
-        with open(os.path.join(folder_name, img_name), 'wb') as img_file:
-            img_file.write(response.content)
-        print(f"Đã tải ảnh: {img_name}")
+        # Save the image as a square image with padding
+        output_path = os.path.join(folder_name, img_name)
+        make_square_image(response.content, output_path)
 
     except requests.exceptions.RequestException as e:
         print(f"Lỗi khi tải ảnh {img_name}: {e}")
