@@ -8,65 +8,61 @@ import time
 import os
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename, askdirectory
+from PIL import Image
+from io import BytesIO
 
 # Sử dụng hộp thoại để chọn file
 def select_file():
-    Tk().withdraw()  # Ẩn cửa sổ gốc của Tkinter
+    Tk().withdraw()
     file_path = askopenfilename(filetypes=[("Text files", "*.txt")])
     return file_path
 
 # Sử dụng hộp thoại để chọn thư mục lưu ảnh
 def select_directory():
-    Tk().withdraw()  # Ẩn cửa sổ gốc của Tkinter
+    Tk().withdraw()
     directory_path = askdirectory(title="Chọn thư mục lưu ảnh")
     return directory_path
 
 # Hàm chỉnh sửa URL hình ảnh
 def modify_image_url(img_url):
-    # Chỉnh sửa URL để thay đổi kích thước và định dạng
-    img_url = img_url.split(';')[0]  # Lấy phần URL trước dấu chấm phẩy
+    img_url = img_url.split(';')[0]
     return f"{img_url};maxHeight=1200;maxWidth=1200;format=jpg"
 
-# Hàm tải ảnh từ URL với đường dẫn thư mục
-def download_image(img_url, img_name, folder_name):
-    img_data = requests.get(img_url).content
-    with open(os.path.join(folder_name, img_name), 'wb') as img_file:
-        img_file.write(img_data)
-    print(f"Đã tải ảnh: {img_name}")
+def make_square_image(img_data, output_path):
+    img = Image.open(BytesIO(img_data))
+    width, height = img.size
+    max_dim = max(width, height)
+    new_img = Image.new("RGB", (max_dim, max_dim), (255, 255, 255))
+    new_img.paste(img, ((max_dim - width) // 2, (max_dim - height) // 2))
+    new_img.save(output_path)
+    print(f"Saved square image: {output_path}")
 
-def download_image2(img_url, img_name, folder_name): 
+# Updated download function with square resizing
+def download_image(img_url, img_name, folder_name):
     try:
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36'
         }
         response = requests.get(img_url, headers=headers)
-        response.raise_for_status()  # Kiểm tra lỗi HTTP
+        response.raise_for_status()
 
-        # Kiểm tra xem nội dung có phải là hình ảnh không
-        if 'image' not in response.headers['Content-Type']:
-            print(f"Lỗi: URL {img_url} không phải là hình ảnh.")
-            return
-
-        # Lưu hình ảnh vào thư mục đã chọn
-        with open(os.path.join(folder_name, img_name), 'wb') as img_file:
-            img_file.write(response.content)
-        print(f"Đã tải ảnh: {img_name}")
+        if 'image' in response.headers['Content-Type']:
+            output_path = os.path.join(folder_name, img_name)
+            make_square_image(response.content, output_path)
+        else:
+            print(f"URL is not an image: {img_url}")
 
     except requests.exceptions.RequestException as e:
-        print(f"Lỗi khi tải ảnh {img_name}: {e}")
-
-
+        print(f"Error downloading image {img_name}: {e}")
 
 # Đường dẫn đến Edge WebDriver
-edge_driver_path = 'D:/CODE/crawl-image/edgedriver_win64/msedgedriver.exe'  # Cập nhật đường dẫn phù hợp
+edge_driver_path = 'D:/CODE/crawl-image/edgedriver_win64/msedgedriver.exe'
 
 # Cho người dùng chọn file chứa link hình ảnh
 file_path = select_file()
-if file_path:  # Kiểm tra nếu người dùng đã chọn file
-    # Cho người dùng chọn thư mục lưu hình ảnh
+if file_path:
     folder_name = select_directory()
-    if folder_name:  # Kiểm tra nếu người dùng đã chọn thư mục
-        # Khởi tạo Selenium Edge WebDriver
+    if folder_name:
         service = Service(edge_driver_path)
         driver = webdriver.Edge(service=service)
 
@@ -76,47 +72,50 @@ if file_path:  # Kiểm tra nếu người dùng đã chọn file
         for index, link in enumerate(links):
             link = link.strip()
             driver.get(link)
-            time.sleep(5)  # Chờ trang tải hoàn toàn (điều chỉnh nếu cần)
+            time.sleep(5)  # Wait for the page to load
 
+            # Kiểm tra và chọn quốc gia nếu có yêu cầu
             try:
-                # Nhấp vào thẻ img có class cụ thể
+                # Check if "Choose a country." is displayed
+                country_prompt = driver.find_elements(By.XPATH, "//h1[text()='Choose a country.']")
+                if country_prompt:
+                    us_link = driver.find_element(By.CLASS_NAME, "us-link")
+                    us_link.click()  # Select US link
+                    time.sleep(3)  # Wait for the page to load after country selection
+
+                # Now proceed with the image scraping process
                 primary_button = WebDriverWait(driver, 10).until(
                     EC.element_to_be_clickable((By.CLASS_NAME, "primary-image"))
                 )
-                primary_button.click()  # Nhấp vào nút zoom để xem hình ảnh lớn
+                primary_button.click()
 
-                time.sleep(2)  # Chờ một chút để modal tải lên (điều chỉnh nếu cần)
+                time.sleep(2)
 
-                # Tìm tất cả các thẻ <li> trong modal
                 li_elements = driver.find_elements(By.CSS_SELECTOR, "ol.carousel-indicate li")
                 
                 for li in li_elements:
-                    li.click()  # Nhấp vào từng thẻ <li>
-                    time.sleep(2)  # Chờ một chút để hình ảnh mới tải
+                    li.click()
+                    time.sleep(2)
 
-                    # Tìm thẻ img bên trong thẻ <li> vừa nhấn
                     img_tag = li.find_element(By.TAG_NAME, 'img')
                     if img_tag:
-                        img_url = img_tag.get_attribute('src')  # Lấy URL của hình ảnh
+                        img_url = img_tag.get_attribute('src')
                         if img_url and img_url.startswith('http'):
-                            img_url = modify_image_url(img_url)  # Chỉnh sửa URL
+                            img_url = modify_image_url(img_url)
                             img_name = f"product_{index + 1}_image_{li_elements.index(li) + 1}.jpg"
-                            download_image2(img_url, img_name, folder_name)  # Gọi hàm với đường dẫn thư mục
+                            download_image(img_url, img_name, folder_name)
                         else:
                             print(f"URL không hợp lệ: {img_url}")
                     else:
                         print("Không tìm thấy hình ảnh.")
 
-                # Đóng modal sau khi hoàn thành
-                close_button = driver.find_element(By.CSS_SELECTOR, "button.close")  # Cập nhật selector cho nút đóng
+                close_button = driver.find_element(By.CSS_SELECTOR, "button.close")
                 close_button.click()
 
             except Exception as e:
                 print(f"Lỗi khi xử lý link {link}: {e}")
 
         print("Tải ảnh hoàn tất.")
-        
-        # Đóng trình duyệt
         driver.quit()
     else:
         print("Không có thư mục nào được chọn.")
