@@ -1,123 +1,34 @@
-import requests
-from selenium import webdriver
-from selenium.webdriver.edge.service import Service
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-import time
-import os
-from tkinter import Tk
-from tkinter.filedialog import askopenfilename, askdirectory
-from PIL import Image
-from io import BytesIO
+import subprocess
+from tkinter import Tk, Label, Button, Radiobutton, IntVar, messagebox
 
-# Sử dụng hộp thoại để chọn file
-def select_file():
-    Tk().withdraw()
-    file_path = askopenfilename(filetypes=[("Text files", "*.txt")])
-    return file_path
-
-# Sử dụng hộp thoại để chọn thư mục lưu ảnh
-def select_directory():
-    Tk().withdraw()
-    directory_path = askdirectory(title="Chọn thư mục lưu ảnh")
-    return directory_path
-
-# Hàm chỉnh sửa URL hình ảnh
-def modify_image_url(img_url):
-    img_url = img_url.split(';')[0]
-    return f"{img_url};maxHeight=1200;maxWidth=1200;format=jpg"
-
-def make_square_image(img_data, output_path):
-    img = Image.open(BytesIO(img_data))
-    width, height = img.size
-    max_dim = max(width, height)
-    new_img = Image.new("RGB", (max_dim, max_dim), (255, 255, 255))
-    new_img.paste(img, ((max_dim - width) // 2, (max_dim - height) // 2))
-    new_img.save(output_path)
-    print(f"Saved square image: {output_path}")
-
-# Updated download function with square resizing
-def download_image(img_url, img_name, folder_name):
+# Function to start the selected script
+def start_script(site_choice):
     try:
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36'
-        }
-        response = requests.get(img_url, headers=headers)
-        response.raise_for_status()
-
-        if 'image' in response.headers['Content-Type']:
-            output_path = os.path.join(folder_name, img_name)
-            make_square_image(response.content, output_path)
+        if site_choice == 1:
+            subprocess.run(["python", "./qvc/main.py"], check=True)
+        elif site_choice == 2:
+            subprocess.run(["python", "./bestbuy/main.py"], check=True)
         else:
-            print(f"URL is not an image: {img_url}")
+            messagebox.showerror("Error", "Please select a valid site.")
+            return
+        messagebox.showinfo("Completed", "Process completed successfully!")
+    except subprocess.CalledProcessError as e:
+        messagebox.showerror("Error", f"An error occurred: {e}")
 
-    except requests.exceptions.RequestException as e:
-        print(f"Error downloading image {img_name}: {e}")
+# GUI setup
+def main():
+    root = Tk()
+    root.title("Image Downloader")
 
-# Đường dẫn đến Edge WebDriver
-edge_driver_path = 'D:/CODE/crawl-image/edgedriver_win64/msedgedriver.exe'
+    Label(root, text="Select a site to download images from:").pack(pady=10)
 
-# Cho người dùng chọn file chứa link hình ảnh
-file_path = select_file()
-if file_path:
-    folder_name = select_directory()
-    if folder_name:
-        service = Service(edge_driver_path)
-        driver = webdriver.Edge(service=service)
+    site_choice = IntVar()
+    Radiobutton(root, text="QVC", variable=site_choice, value=1).pack(anchor="w")
+    Radiobutton(root, text="Best Buy", variable=site_choice, value=2).pack(anchor="w")
 
-        with open(file_path, 'r') as file:
-            links = file.readlines()
+    Button(root, text="Start Download", command=lambda: start_script(site_choice.get())).pack(pady=20)
 
-        for index, link in enumerate(links):
-            link = link.strip()
-            driver.get(link)
-            time.sleep(5)  # Wait for the page to load
+    root.mainloop()
 
-            # Kiểm tra và chọn quốc gia nếu có yêu cầu
-            try:
-                # Check if "Choose a country." is displayed
-                country_prompt = driver.find_elements(By.XPATH, "//h1[text()='Choose a country.']")
-                if country_prompt:
-                    us_link = driver.find_element(By.CLASS_NAME, "us-link")
-                    us_link.click()  # Select US link
-                    time.sleep(3)  # Wait for the page to load after country selection
-
-                # Now proceed with the image scraping process
-                primary_button = WebDriverWait(driver, 10).until(
-                    EC.element_to_be_clickable((By.CLASS_NAME, "primary-image"))
-                )
-                primary_button.click()
-
-                time.sleep(2)
-
-                li_elements = driver.find_elements(By.CSS_SELECTOR, "ol.carousel-indicate li")
-                
-                for li in li_elements:
-                    li.click()
-                    time.sleep(2)
-
-                    img_tag = li.find_element(By.TAG_NAME, 'img')
-                    if img_tag:
-                        img_url = img_tag.get_attribute('src')
-                        if img_url and img_url.startswith('http'):
-                            img_url = modify_image_url(img_url)
-                            img_name = f"product_{index + 1}_image_{li_elements.index(li) + 1}.jpg"
-                            download_image(img_url, img_name, folder_name)
-                        else:
-                            print(f"URL không hợp lệ: {img_url}")
-                    else:
-                        print("Không tìm thấy hình ảnh.")
-
-                close_button = driver.find_element(By.CSS_SELECTOR, "button.close")
-                close_button.click()
-
-            except Exception as e:
-                print(f"Lỗi khi xử lý link {link}: {e}")
-
-        print("Tải ảnh hoàn tất.")
-        driver.quit()
-    else:
-        print("Không có thư mục nào được chọn.")
-else:
-    print("Không có file nào được chọn.")
+if __name__ == "__main__":
+    main()
