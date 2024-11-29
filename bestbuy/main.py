@@ -4,12 +4,17 @@ from selenium.webdriver.edge.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.edge.options import Options
 import time
 import os
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename, askdirectory
 from PIL import Image
 from io import BytesIO
+
+# Proxy Configuration
+PROXY_IP = "192.168.100.199"  # Thay bằng địa chỉ IP proxy
+PROXY_PORT = "40010"  # Thay bằng cổng proxy
 
 # Sử dụng hộp thoại để chọn file
 def select_file():
@@ -37,13 +42,17 @@ def make_square_image(img_data, output_path):
     new_img.save(output_path)
     print(f"Saved square image: {output_path}")
 
-# Updated download function with square resizing
+# Updated download function with square resizing and proxy
 def download_image(img_url, img_name, folder_name):
     try:
+        proxies = {
+            "http": f"http://{PROXY_IP}:{PROXY_PORT}",
+            "https": f"http://{PROXY_IP}:{PROXY_PORT}"
+        }
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36'
         }
-        response = requests.get(img_url, headers=headers)
+        response = requests.get(img_url, headers=headers, proxies=proxies)
         response.raise_for_status()
 
         if 'image' in response.headers['Content-Type']:
@@ -58,6 +67,10 @@ def download_image(img_url, img_name, folder_name):
 # Đường dẫn đến Edge WebDriver
 edge_driver_path = os.path.abspath('./edgedriver_win64/msedgedriver.exe')
 
+# Cấu hình proxy cho Selenium
+edge_options = Options()
+edge_options.add_argument(f"--proxy-server=http://{PROXY_IP}:{PROXY_PORT}")
+
 # Verify if the path exists (optional)
 if not os.path.exists(edge_driver_path):
     print("Edge WebDriver not found at:", edge_driver_path)
@@ -70,7 +83,7 @@ if file_path:
     folder_name = select_directory()
     if folder_name:
         service = Service(edge_driver_path)
-        driver = webdriver.Edge(service=service)
+        driver = webdriver.Edge(service=service, options=edge_options)
 
         with open(file_path, 'r') as file:
             links = file.readlines()
@@ -82,14 +95,12 @@ if file_path:
 
             # Kiểm tra và chọn quốc gia nếu có yêu cầu
             try:
-                # Check if "Choose a country." is displayed
                 country_prompt = driver.find_elements(By.XPATH, "//h1[text()='Choose a country.']")
                 if country_prompt:
                     us_link = driver.find_element(By.CLASS_NAME, "us-link")
                     us_link.click()  # Select US link
                     time.sleep(3)  # Wait for the page to load after country selection
 
-                # Now proceed with the image scraping process
                 primary_button = WebDriverWait(driver, 10).until(
                     EC.element_to_be_clickable((By.CLASS_NAME, "primary-image"))
                 )

@@ -8,6 +8,10 @@ def start_script(site_choice):
             subprocess.run(["python", "./qvc/main.py"], check=True)
         elif site_choice == 2:
             subprocess.run(["python", "./bestbuy/main.py"], check=True)
+        elif site_choice == 3:
+            subprocess.run(["python", "./costway/main.py"], check=True)
+        elif site_choice == 4:
+            subprocess.run(["python", "./columbia/main.py"], check=True)
         else:
             messagebox.showerror("Error", "Please select a valid site.")
             return
@@ -25,6 +29,8 @@ def main():
     site_choice = IntVar()
     Radiobutton(root, text="QVC", variable=site_choice, value=1).pack(anchor="w")
     Radiobutton(root, text="Best Buy", variable=site_choice, value=2).pack(anchor="w")
+    Radiobutton(root, text="Costway", variable=site_choice, value=3).pack(anchor="w")
+    Radiobutton(root, text="Columbia", variable=site_choice, value=4).pack(anchor="w")
 
     Button(root, text="Start Download", command=lambda: start_script(site_choice.get())).pack(pady=20)
 
