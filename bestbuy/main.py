@@ -14,7 +14,7 @@ from io import BytesIO
 
 # Proxy Configuration
 PROXY_IP = "192.168.100.199"  # Thay bằng địa chỉ IP proxy
-PROXY_PORT = "40010"  # Thay bằng cổng proxy
+PROXY_PORT = "40000"  # Thay bằng cổng proxy
 
 # Sử dụng hộp thoại để chọn file
 def select_file():

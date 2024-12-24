@@ -40,29 +40,27 @@ def make_square_image(img_data, output_path):
     print(f"Saved square image: {output_path}")
 
 # Function to download image with square resizing, using proxy
+# Tải ảnh từ URL với kích thước chỉnh sửa
 def download_image(img_url, img_name, folder_name):
     try:
+        # Thay thế '80x80' bằng '800x800' trong URL
+        img_url = img_url.replace("80x80", "800x800")
+        
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36'
         }
-        # Setting up the proxy for requests
-        proxies = {
-            'http': f'socks5h://{socks5_proxy_ip}:{socks5_proxy_port}',
-            'https': f'socks5h://{socks5_proxy_ip}:{socks5_proxy_port}'
-        }
-
-        # Make the request through the proxy
-        response = requests.get(img_url, headers=headers, proxies=proxies, timeout=30)
+        response = requests.get(img_url, headers=headers)
         response.raise_for_status()
-
+        
+        # Kiểm tra nếu nội dung là hình ảnh
         if 'image' in response.headers['Content-Type']:
             output_path = os.path.join(folder_name, img_name)
             make_square_image(response.content, output_path)
         else:
-            print(f"URL is not an image: {img_url}")
-
+            print(f"Lỗi: URL không phải là hình ảnh - {img_url}")
     except requests.exceptions.RequestException as e:
-        print(f"Error downloading image {img_name}: {e}")
+        print(f"Lỗi khi tải ảnh {img_name}: {e}")
+
 
 # Path to Edge WebDriver
 edge_driver_path = os.path.abspath('./edgedriver_win64/msedgedriver.exe')
